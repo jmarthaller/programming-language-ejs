@@ -16,9 +16,8 @@ function parseExpression(program) {
 }
   
 function skipSpace(string) {
-    let first = string.search(/\S/);
-    if (first == -1) return "";
-    return string.slice(first);
+    let skippable = string.match(/^(\s|#.*)*/);
+    return string.slice(skippable[0].length);
 }
 
 
@@ -206,3 +205,35 @@ do(define(pow, fun(base, exp,
 
 
 
+topScope.array = (...values) => values;
+
+topScope.length = array => array.length;
+
+topScope.element = (array, i) => array[i];
+
+run(`
+do(define(sum, fun(array,
+     do(define(i, 0),
+        define(sum, 0),
+        while(<(i, length(array)),
+          do(define(sum, +(sum, element(array, i))),
+             define(i, +(i, 1)))),
+        sum))),
+   print(sum(array(1, 2, 3))))
+`);
+
+specialForms.set = (args, env) => {
+  if (args.length != 2 || args[0].type != "word") {
+    throw new SyntaxError("Bad use of set");
+  }
+  let varName = args[0].name;
+  let value = evaluate(args[1], env);
+
+  for (let scope = env; scope; scope = Object.getPrototypeOf(scope)) {
+    if (Object.prototype.hasOwnProperty.call(scope, varName)) {
+      scope[varName] = value;
+      return value;
+    }
+  }
+  throw new ReferenceError(`Setting undefined variable ${varName}`);
+};
